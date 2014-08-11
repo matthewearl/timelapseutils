@@ -1,0 +1,7 @@
+
+Description of files in this repository:
+
+rawsubtract.py: Subtract 2 CR2 files, and output an image (eg. PNG) of the
+    result. Allows (per component) scaling, so that rudimentary white-balance
+    can be performed.
+

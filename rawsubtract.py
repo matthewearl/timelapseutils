@@ -42,6 +42,7 @@ def _raw_file_to_array(raw_file):
 
     a = numpy.fromstring(d.get_data(),
                          dtype=numpy.uint16) / max_val
+    a = a.astype(numpy.float32, copy=False)
 
     a = numpy.resize(a, (d.get_height(), d.get_width()))
 
@@ -73,8 +74,8 @@ def _rggb_debayer(a):
     # has ones for elements that are red filtered, and zeros everywhere else.
     # Similar for green_mask and blue_mask
     half_shape = (a.shape[0] / 2, a.shape[1] / 2)
-    z = numpy.zeros(half_shape)
-    o = numpy.ones(half_shape)
+    z = numpy.zeros(half_shape, dtype=numpy.float32)
+    o = numpy.ones(half_shape, dtype=numpy.float32)
     red_mask = numpy.array(
         [ [ o, z ],
           [ z, z ]
@@ -102,7 +103,7 @@ def _rggb_debayer(a):
     gc.collect()
 
     # Perform a basic 2x2 box blur on each channel.
-    out = numpy.zeros(unconvolved.shape)
+    out = numpy.zeros(unconvolved.shape, dtype=numpy.float32)
     for chan in range(3):
         out[chan, :, :] += unconvolved[chan, :, :]
         out[chan, :-1, :] += unconvolved[chan, 1:, :]
@@ -119,6 +120,7 @@ def _load_image(file_name):
     # Load the image.
     im = PIL.Image.open(file_name)
     im_array = numpy.frombuffer(im.tostring(), dtype=numpy.uint8)
+    im_array = im_array.astype(numpy.float32, copy=False)
 
     # Convert into the range 0..1
     im_array = numpy.array(im_array) / 255.0
@@ -145,8 +147,7 @@ def _save_image(im_array, file_name):
         im_array[chan, :, :] = numpy.flipud(im_array[chan, :, :])
 
     # Clamp values to 0..1
-    im_array = numpy.minimum(numpy.ones(im_array.shape), im_array)
-    im_array = numpy.maximum(numpy.zeros(im_array.shape), im_array)
+    numpy.clip(im_array, 0., 1.0, out=im_array)
 
     # Convert into a 1D array with values in the order expected by PIL.
     im_array = numpy.transpose(im_array, (1, 2, 0))
@@ -154,7 +155,8 @@ def _save_image(im_array, file_name):
     im_array = im_array.flatten()
 
     # Convert to bytes in the range 0..255
-    im_array = numpy.uint8(im_array * 255.)
+    im_array *= 255.
+    im_array = numpy.uint8(im_array)
 
     # Save the image.
     im = PIL.Image.frombuffer("RGB", dims, numpy.getbuffer(im_array))
@@ -214,7 +216,6 @@ def main(argv):
         im_array = _rggb_debayer(a)
         del f1, f2, a2, a
         gc.collect()
-        print("Collected!")
     else:
         raise UsageError("More than 2 files passed")
 
